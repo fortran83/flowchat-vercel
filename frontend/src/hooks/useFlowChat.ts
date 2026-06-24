@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { ChatMessage, ConversationState } from '../types/index.js';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://flowchat-vercel-production.up.railway.app';
 
 export type SocketStatus = 'connecting' | 'connected' | 'disconnected';
 
@@ -119,6 +119,7 @@ export function useFlowChat() {
     }) => {
       setConversation((prev) => ({
         ...prev,
+        // success = tap was resolved and Apex callout returned buttonText to Flow
         sfStatus: data.success ? 'success' : 'failed',
         sfRecordId: data.recordId,
         sfError: data.error || null,
@@ -145,19 +146,31 @@ export function useFlowChat() {
 
   const sendResponse = useCallback(async (buttonId: string, buttonText: string) => {
     if (!conversation.conversationId) return;
+    // Always call /api/flow/tap — works for both long-poll (Apex) and legacy flows
     await fetch(`${BACKEND_URL}/api/flow/tap`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ conversationId: conversation.conversationId, buttonId, buttonText }),
+      body: JSON.stringify({
+        conversationId: conversation.conversationId,
+        buttonId,
+        buttonText,
+      }),
     });
   }, [conversation.conversationId]);
 
   const resetConversation = useCallback(async () => {
     if (!conversation.conversationId) {
       setConversation({
-        conversationId: null, contactName: null, contactId: null, campaignId: null,
-        status: 'idle', messages: [], lastResponse: null,
-        sfStatus: 'idle', sfRecordId: null, sfError: null,
+        conversationId: null,
+        contactName: null,
+        contactId: null,
+        campaignId: null,
+        status: 'idle',
+        messages: [],
+        lastResponse: null,
+        sfStatus: 'idle',
+        sfRecordId: null,
+        sfError: null,
       });
       return;
     }
@@ -168,5 +181,12 @@ export function useFlowChat() {
     });
   }, [conversation.conversationId]);
 
-  return { conversation, isTyping, socketStatus, sfEnabled, sendResponse, resetConversation };
+  return {
+    conversation,
+    isTyping,
+    socketStatus,
+    sfEnabled,
+    sendResponse,
+    resetConversation,
+  };
 }
